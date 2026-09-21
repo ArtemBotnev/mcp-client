@@ -1,0 +1,8 @@
+mcp.transport=stdio
+mcp.stdio.command=java
+mcp.stdio.args=-Dkotlin-logging.logStartupMessage=false -Dorg.slf4j.simpleLogger.logFile=System.err -Dorg.slf4j.simpleLogger.defaultLogLevel=warn -jar McpWeatherStationServer-1.0.0-all.jar
+mcp.stdio.cwd=/path/to/weather-station-server
+
+# Если сервер собран в remote/http-режиме:
+# mcp.transport=http
+# mcp.server.url=http://127.0.0.1:8081/mcp
