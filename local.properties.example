@@ -6,3 +6,8 @@ mcp.stdio.cwd=/path/to/weather-station-server
 # Если сервер собран в remote/http-режиме:
 # mcp.transport=http
 # mcp.server.url=http://127.0.0.1:8081/mcp
+
+# Для диалога с LLM задайте переменные окружения:
+# export OPENAI_API_KEY=...
+# export OPENAI_MODEL=gpt-5
+# Не храните API-ключ в local.properties.
