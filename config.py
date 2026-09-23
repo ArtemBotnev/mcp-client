@@ -14,7 +14,7 @@ MCP_STDIO_CWD_KEY = "mcp.stdio.cwd"
 DEFAULT_CONFIG_FILE = Path(__file__).with_name("local.properties")
 DEFAULT_TIMEOUT_SECONDS = 10
 DEFAULT_LLM_TIMEOUT_SECONDS = 60
-DEFAULT_OPENAI_MODEL = "gpt-5"
+DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 DEFAULT_OPENAI_RESPONSES_API_URL = "https://api.openai.com/v1/responses"
 
 OPENAI_API_KEY_ENV = "OPENAI_API_KEY"

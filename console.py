@@ -67,7 +67,7 @@ class ConsoleChat:
 
 def print_connection_status(label: str, tools_count: int) -> None:
     print("✅ Соединение установлено")
-    print(f"🔗 Сервер: {label}")
+    # print(f"🔗 Сервер: {label}")
     print(f"🧰 Доступных инструментов: {tools_count}")
 
 
