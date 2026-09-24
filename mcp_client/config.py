@@ -11,7 +11,7 @@ MCP_STDIO_COMMAND_KEY = "mcp.stdio.command"
 MCP_STDIO_ARGS_KEY = "mcp.stdio.args"
 MCP_STDIO_CWD_KEY = "mcp.stdio.cwd"
 
-DEFAULT_CONFIG_FILE = Path(__file__).with_name("local.properties")
+DEFAULT_CONFIG_FILE = Path(__file__).resolve().parent.parent / "local.properties"
 DEFAULT_TIMEOUT_SECONDS = 10
 DEFAULT_LLM_TIMEOUT_SECONDS = 60
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"

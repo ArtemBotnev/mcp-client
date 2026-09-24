@@ -3,9 +3,12 @@ from typing import Any, Protocol
 
 from mcp import Client
 
-from errors import LlmApiError, format_error
-from llm import OpenAiResponsesClient, extract_function_calls, extract_output_text
-from mcp_tools import ToolRegistry, format_tool_output, parse_tool_arguments
+from mcp_client.agent.time_normalization import with_normalized_time_context
+from mcp_client.errors import LlmApiError, format_error
+from mcp_client.integrations.mcp_tools import ToolRegistry, format_tool_output, parse_tool_arguments
+from mcp_client.integrations.openai import OpenAiResponsesClient, extract_function_calls, extract_output_text
+
+MAX_TOOL_CALL_ROUNDS = 8
 
 
 class AgentObserver(Protocol):
@@ -23,6 +26,11 @@ def build_system_prompt() -> str:
     return (
         "Ты русскоязычный CLI-ассистент. Веди короткий, понятный диалог с пользователем. "
         "Если для ответа нужны актуальные или внешние данные, используй доступные MCP-инструменты. "
+        "Если пользователь просит отчет или сводку за период человеческим языком, используй нормализованный "
+        "контекст клиента с ISO-8601 датами from/to и не заменяй его приблизительными датами. "
+        "Если задача требует нескольких действий, вызывай MCP-инструменты последовательно: сначала получи данные, "
+        "затем обработай их, затем выполни финальное действие вроде сохранения. "
+        "Передавай результат предыдущего инструмента в следующий инструмент, если он нужен для продолжения цепочки. "
         "Если для вызова инструмента не хватает параметров, задай уточняющий вопрос вместо выдумывания. "
         "После результата инструмента отвечай пользователю человеческим текстом, не пересказывай JSON без необходимости."
     )
@@ -51,10 +59,11 @@ class McpLlmAgent:
         self.previous_response_id = None
 
     async def answer(self, user_message: str) -> str:
+        normalized_message = with_normalized_time_context(user_message)
         payload: dict[str, Any] = {
             "model": self.model,
             "instructions": build_system_prompt(),
-            "input": [{"role": "user", "content": user_message}],
+            "input": [{"role": "user", "content": normalized_message}],
             "tools": self.registry.openai_tools,
             "tool_choice": "auto",
         }
@@ -63,6 +72,7 @@ class McpLlmAgent:
 
         response_data = await self.llm_client.create_response(payload)
 
+        tool_call_round = 0
         while True:
             response_id = response_data.get("id")
             if isinstance(response_id, str):
@@ -71,6 +81,12 @@ class McpLlmAgent:
             function_calls = extract_function_calls(response_data)
             if not function_calls:
                 return self._extract_final_answer(response_data)
+
+            tool_call_round += 1
+            if tool_call_round > MAX_TOOL_CALL_ROUNDS:
+                raise LlmApiError(
+                    f"LLM превысил лимит последовательных вызовов инструментов: {MAX_TOOL_CALL_ROUNDS}.",
+                )
 
             tool_outputs = await self._run_tool_calls(function_calls)
             if not tool_outputs:

@@ -4,7 +4,7 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from errors import LlmApiError
+from mcp_client.errors import LlmApiError
 
 
 class OpenAiResponsesClient:

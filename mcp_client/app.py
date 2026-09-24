@@ -1,11 +1,11 @@
 from mcp import Client
 
-from agent import McpLlmAgent
-from config import AppConfig, OPENAI_API_KEY_ENV
-from console import ConsoleAgentObserver, ConsoleChat, print_connection_status, print_tools
-from errors import ConfigurationError
-from llm import OpenAiResponsesClient
-from mcp_tools import ToolRegistry, list_available_tools
+from mcp_client.agent.chat import McpLlmAgent
+from mcp_client.cli.console import ConsoleAgentObserver, ConsoleChat, print_connection_status, print_tools
+from mcp_client.config import AppConfig, OPENAI_API_KEY_ENV
+from mcp_client.errors import ConfigurationError
+from mcp_client.integrations.mcp_tools import ToolRegistry, list_available_tools
+from mcp_client.integrations.openai import OpenAiResponsesClient
 
 
 class McpClientApplication:

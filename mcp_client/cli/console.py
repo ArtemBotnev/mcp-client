@@ -1,27 +1,22 @@
-import json
 import sys
 from typing import Any
 
-from agent import McpLlmAgent
-from errors import LlmApiError
-from mcp_tools import get_tool_input_schema, serialize_schema
+from mcp_client.agent.chat import McpLlmAgent
+from mcp_client.errors import LlmApiError
+from mcp_client.integrations.mcp_tools import get_tool_input_schema, serialize_schema
 
 EXIT_COMMANDS = {"/exit", "/quit", "exit", "quit"}
 
 
 class ConsoleAgentObserver:
     def tool_started(self, tool_name: str, arguments: dict[str, Any]) -> None:
-        print(f"🔧 Использую инструмент: {tool_name}")
-        print(f"   Аргументы: {json.dumps(arguments, ensure_ascii=False)}")
+        print(f"🔧 Выбран инструмент: {tool_name}")
 
     def tool_finished(self, *, is_error: bool) -> None:
-        if is_error:
-            print("   Результат: инструмент вернул ошибку")
-        else:
-            print("   Результат: получен")
+        pass
 
     def tool_failed(self, message: str) -> None:
-        print(f"   Ошибка: {message}")
+        pass
 
 
 class ConsoleChat:

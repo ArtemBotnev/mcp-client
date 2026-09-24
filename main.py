@@ -1,9 +1,9 @@
 import asyncio
 import sys
 
-from app import McpClientApplication
-from app_cli import build_config, parse_args
-from config import (
+from mcp_client.app import McpClientApplication
+from mcp_client.cli.args import build_config, parse_args
+from mcp_client.config import (
     DEFAULT_LLM_TIMEOUT_SECONDS,
     DEFAULT_OPENAI_MODEL,
     DEFAULT_OPENAI_RESPONSES_API_URL,
@@ -13,7 +13,7 @@ from config import (
     McpServerConfig,
     get_openai_api_key,
 )
-from errors import ConfigurationError, format_error
+from mcp_client.errors import ConfigurationError, format_error
 
 
 def main() -> None:

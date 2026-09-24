@@ -1,8 +1,8 @@
 import argparse
 import os
 
-from cli_ru import create_russian_parser
-from config import (
+from mcp_client.cli.russian import create_russian_parser
+from mcp_client.config import (
     DEFAULT_CONFIG_FILE,
     DEFAULT_LLM_TIMEOUT_SECONDS,
     DEFAULT_OPENAI_MODEL,
