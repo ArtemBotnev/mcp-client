@@ -9,32 +9,92 @@ TOOL_NAME_PATTERN = re.compile(r"[^a-zA-Z0-9_-]")
 
 
 @dataclass(frozen=True)
+class ServerToolSet:
+    server_id: str
+    server_label: str
+    tools: list[Any]
+    client: Any | None = None
+
+
+@dataclass(frozen=True)
+class RegisteredTool:
+    function_name: str
+    server_id: str
+    server_label: str
+    original_name: str
+    tool: Any
+    client: Any | None = None
+
+
+@dataclass(frozen=True)
 class ToolRegistry:
     openai_tools: list[dict[str, Any]]
-    tool_by_function_name: dict[str, Any]
+    tool_by_function_name: dict[str, RegisteredTool]
 
     @classmethod
-    def from_mcp_tools(cls, tools: list[Any]) -> "ToolRegistry":
+    def from_mcp_tools(
+        cls,
+        tools: list[Any],
+        *,
+        server_id: str = "default",
+        server_label: str | None = None,
+        client: Any | None = None,
+        prefix_tool_names: bool = False,
+    ) -> "ToolRegistry":
+        return cls.from_mcp_server_tools(
+            [
+                ServerToolSet(
+                    server_id=server_id,
+                    server_label=server_label or server_id,
+                    tools=tools,
+                    client=client,
+                ),
+            ],
+            prefix_tool_names=prefix_tool_names,
+        )
+
+    @classmethod
+    def from_mcp_server_tools(
+        cls,
+        server_tool_sets: list[ServerToolSet],
+        *,
+        prefix_tool_names: bool = True,
+    ) -> "ToolRegistry":
         openai_tools = []
         tool_by_function_name = {}
         used_names: set[str] = set()
 
-        for tool in tools:
-            function_name = normalize_function_name(tool.name, used_names)
-            description = tool.description or f"MCP tool {tool.name}"
-            if function_name != tool.name:
-                description = f"{description}\nOriginal MCP tool name: {tool.name}"
+        for server_tools in server_tool_sets:
+            for tool in server_tools.tools:
+                raw_function_name = tool.name
+                if prefix_tool_names:
+                    raw_function_name = f"{server_tools.server_id}_{tool.name}"
 
-            openai_tools.append(
-                {
-                    "type": "function",
-                    "name": function_name,
-                    "description": description,
-                    "parameters": schema_to_dict(get_tool_input_schema(tool)),
-                    "strict": False,
-                },
-            )
-            tool_by_function_name[function_name] = tool
+                function_name = normalize_function_name(raw_function_name, used_names)
+                description = tool.description or f"MCP tool {tool.name}"
+                description = (
+                    f"{description}\n"
+                    f"MCP server: {server_tools.server_id}\n"
+                    f"Original MCP tool name: {tool.name}"
+                )
+
+                openai_tools.append(
+                    {
+                        "type": "function",
+                        "name": function_name,
+                        "description": description,
+                        "parameters": schema_to_dict(get_tool_input_schema(tool)),
+                        "strict": False,
+                    },
+                )
+                tool_by_function_name[function_name] = RegisteredTool(
+                    function_name=function_name,
+                    server_id=server_tools.server_id,
+                    server_label=server_tools.server_label,
+                    original_name=tool.name,
+                    tool=tool,
+                    client=server_tools.client,
+                )
 
         return cls(openai_tools=openai_tools, tool_by_function_name=tool_by_function_name)
 

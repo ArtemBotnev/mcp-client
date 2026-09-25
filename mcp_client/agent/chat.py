@@ -26,11 +26,15 @@ def build_system_prompt() -> str:
     return (
         "Ты русскоязычный CLI-ассистент. Веди короткий, понятный диалог с пользователем. "
         "Если для ответа нужны актуальные или внешние данные, используй доступные MCP-инструменты. "
+        "Инструменты могут быть получены с разных MCP-серверов: выбирай их по имени сервера в названии "
+        "и по описанию инструмента. "
         "Если пользователь просит отчет или сводку за период человеческим языком, используй нормализованный "
         "контекст клиента с ISO-8601 датами from/to и не заменяй его приблизительными датами. "
         "Если задача требует нескольких действий, вызывай MCP-инструменты последовательно: сначала получи данные, "
         "затем обработай их, затем выполни финальное действие вроде сохранения. "
         "Передавай результат предыдущего инструмента в следующий инструмент, если он нужен для продолжения цепочки. "
+        "Не вызывай инструмент, аргументы которого зависят от результата предыдущего шага, пока этот результат "
+        "не получен. "
         "Если для вызова инструмента не хватает параметров, задай уточняющий вопрос вместо выдумывания. "
         "После результата инструмента отвечай пользователю человеческим текстом, не пересказывай JSON без необходимости."
     )
@@ -40,12 +44,13 @@ class McpLlmAgent:
     def __init__(
         self,
         *,
-        mcp_client: Client,
         llm_client: OpenAiResponsesClient,
         model: str,
         registry: ToolRegistry,
         mcp_timeout: float,
         observer: AgentObserver,
+        mcp_client: Client | None = None,
+        max_tool_call_rounds: int = MAX_TOOL_CALL_ROUNDS,
     ) -> None:
         self.mcp_client = mcp_client
         self.llm_client = llm_client
@@ -53,6 +58,7 @@ class McpLlmAgent:
         self.registry = registry
         self.mcp_timeout = mcp_timeout
         self.observer = observer
+        self.max_tool_call_rounds = max_tool_call_rounds
         self.previous_response_id: str | None = None
 
     def reset(self) -> None:
@@ -83,9 +89,9 @@ class McpLlmAgent:
                 return self._extract_final_answer(response_data)
 
             tool_call_round += 1
-            if tool_call_round > MAX_TOOL_CALL_ROUNDS:
+            if tool_call_round > self.max_tool_call_rounds:
                 raise LlmApiError(
-                    f"LLM превысил лимит последовательных вызовов инструментов: {MAX_TOOL_CALL_ROUNDS}.",
+                    f"LLM превысил лимит последовательных вызовов инструментов: {self.max_tool_call_rounds}.",
                 )
 
             tool_outputs = await self._run_tool_calls(function_calls)
@@ -135,17 +141,29 @@ class McpLlmAgent:
 
     async def _run_single_tool_call(self, function_name: str, raw_arguments: Any) -> str:
         arguments, parse_error = parse_tool_arguments(raw_arguments)
-        tool = self.registry.tool_by_function_name.get(function_name)
+        registered_tool = self.registry.tool_by_function_name.get(function_name)
 
-        if tool is None:
+        if registered_tool is None:
             return json.dumps({"error": f"Неизвестный инструмент: {function_name}"}, ensure_ascii=False)
         if parse_error is not None:
             return json.dumps({"error": parse_error}, ensure_ascii=False)
 
-        self.observer.tool_started(tool.name, arguments)
+        mcp_client = registered_tool.client or self.mcp_client
+        if mcp_client is None:
+            return json.dumps(
+                {
+                    "error": (
+                        f"Для инструмента {function_name} не найден MCP-клиент "
+                        f"сервера {registered_tool.server_id}."
+                    ),
+                },
+                ensure_ascii=False,
+            )
+
+        self.observer.tool_started(f"{registered_tool.server_id}.{registered_tool.original_name}", arguments)
         try:
-            result = await self.mcp_client.call_tool(
-                tool.name,
+            result = await mcp_client.call_tool(
+                registered_tool.original_name,
                 arguments=arguments,
                 read_timeout_seconds=self.mcp_timeout,
             )

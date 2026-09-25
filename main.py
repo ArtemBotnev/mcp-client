@@ -7,6 +7,8 @@ from mcp_client.config import (
     DEFAULT_LLM_TIMEOUT_SECONDS,
     DEFAULT_OPENAI_MODEL,
     DEFAULT_OPENAI_RESPONSES_API_URL,
+    DEFAULT_PIPELINE_ENABLED,
+    DEFAULT_PIPELINE_MAX_ITERATIONS,
     DEFAULT_TIMEOUT_SECONDS,
     OPENAI_API_KEY_ENV,
     AppConfig,
@@ -18,12 +20,14 @@ from mcp_client.errors import ConfigurationError, format_error
 
 def main() -> None:
     config = AppConfig(
-        mcp_server=McpServerConfig(server="<не настроен>", label="<не настроен>"),
+        mcp_servers=[McpServerConfig(id="default", server="<не настроен>", label="<не настроен>")],
         mcp_timeout=DEFAULT_TIMEOUT_SECONDS,
         llm_timeout=DEFAULT_LLM_TIMEOUT_SECONDS,
         model=DEFAULT_OPENAI_MODEL,
         api_url=DEFAULT_OPENAI_RESPONSES_API_URL,
         list_tools_only=False,
+        pipeline_enabled=DEFAULT_PIPELINE_ENABLED,
+        max_tool_call_rounds=DEFAULT_PIPELINE_MAX_ITERATIONS,
     )
 
     try:
@@ -34,8 +38,9 @@ def main() -> None:
             raise ConfigurationError(f"Перед запуском чата задайте переменную окружения {OPENAI_API_KEY_ENV}.")
         asyncio.run(McpClientApplication(config=config, api_key=api_key).run())
     except TimeoutError:
+        server_labels = ", ".join(server.label for server in config.mcp_servers)
         print(
-            f"Не удалось подключиться к MCP-серверу за {config.mcp_timeout} секунд: {config.mcp_server.label}",
+            f"Не удалось подключиться к MCP-серверу за {config.mcp_timeout} секунд: {server_labels}",
             file=sys.stderr,
         )
         sys.exit(1)

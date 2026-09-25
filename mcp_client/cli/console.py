@@ -3,7 +3,7 @@ from typing import Any
 
 from mcp_client.agent.chat import McpLlmAgent
 from mcp_client.errors import LlmApiError
-from mcp_client.integrations.mcp_tools import get_tool_input_schema, serialize_schema
+from mcp_client.integrations.mcp_tools import ServerToolSet, get_tool_input_schema, serialize_schema
 
 EXIT_COMMANDS = {"/exit", "/quit", "exit", "quit"}
 
@@ -20,10 +20,9 @@ class ConsoleAgentObserver:
 
 
 class ConsoleChat:
-    def __init__(self, *, agent: McpLlmAgent, server_label: str, tools: list[Any]) -> None:
+    def __init__(self, *, agent: McpLlmAgent, server_tool_sets: list[ServerToolSet]) -> None:
         self.agent = agent
-        self.server_label = server_label
-        self.tools = tools
+        self.server_tool_sets = server_tool_sets
 
     async def run(self) -> None:
         print("\n💬 Диалог с MCP-агентом")
@@ -44,7 +43,7 @@ class ConsoleChat:
                 print("До свидания!")
                 return
             if lower_message == "/tools":
-                print_tools(self.server_label, self.tools)
+                print_tools(self.server_tool_sets)
                 continue
             if lower_message == "/reset":
                 self.agent.reset()
@@ -60,26 +59,36 @@ class ConsoleChat:
             print(f"Агент: {answer}")
 
 
-def print_connection_status(label: str, tools_count: int) -> None:
+def print_connection_status(server_tool_sets: list[ServerToolSet]) -> None:
+    tools_count = sum(len(server_tools.tools) for server_tools in server_tool_sets)
+    server_names = ", ".join(server_tools.server_id for server_tools in server_tool_sets)
     print("✅ Соединение установлено")
-    # print(f"🔗 Сервер: {label}")
+    print(f"🔗 MCP-серверов: {len(server_tool_sets)}")
+    print(f"🌐 Подключены: {server_names}")
     print(f"🧰 Доступных инструментов: {tools_count}")
 
 
-def print_tools(label: str, tools: list[Any]) -> None:
-    print_connection_status(label, len(tools))
+def print_tools(server_tool_sets: list[ServerToolSet]) -> None:
+    print_connection_status(server_tool_sets)
 
-    if not tools:
+    if not any(server_tools.tools for server_tools in server_tool_sets):
         print("⚠️ Сервер не вернул ни одного инструмента.")
         return
 
-    print("\n🤖 Инструменты MCP-сервера:")
-    for tool in tools:
+    print("\n🤖 Инструменты MCP-серверов:")
+    for server_tools in server_tool_sets:
         print()
-        print(f"🔧 {tool.name}")
-        print(f"   📝 Описание: {tool.description or 'Без описания'}")
-        print("   📦 Схема входных данных:")
-        print(serialize_schema(get_tool_input_schema(tool)))
+        print(f"🔗 {server_tools.server_id}: {server_tools.server_label}")
+        if not server_tools.tools:
+            print("   ⚠️ Сервер не вернул ни одного инструмента.")
+            continue
+
+        for tool in server_tools.tools:
+            print()
+            print(f"🔧 {server_tools.server_id}.{tool.name}")
+            print(f"   📝 Описание: {tool.description or 'Без описания'}")
+            print("   📦 Схема входных данных:")
+            print(serialize_schema(get_tool_input_schema(tool)))
 
 
 def format_llm_error(error: LlmApiError) -> str:

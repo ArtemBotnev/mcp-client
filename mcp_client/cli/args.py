@@ -11,7 +11,9 @@ from mcp_client.config import (
     OPENAI_MODEL_ENV,
     OPENAI_RESPONSES_API_URL_ENV,
     AppConfig,
-    resolve_mcp_server,
+    resolve_max_tool_call_rounds,
+    resolve_mcp_servers,
+    resolve_pipeline_enabled,
 )
 
 
@@ -68,10 +70,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def build_config(args: argparse.Namespace) -> AppConfig:
     return AppConfig(
-        mcp_server=resolve_mcp_server(args.url, args.config),
+        mcp_servers=resolve_mcp_servers(args.url, args.config),
         mcp_timeout=args.timeout,
         llm_timeout=args.llm_timeout,
         model=args.model,
         api_url=args.openai_api_url,
         list_tools_only=args.list_tools,
+        pipeline_enabled=resolve_pipeline_enabled(args.config),
+        max_tool_call_rounds=resolve_max_tool_call_rounds(args.config),
     )
